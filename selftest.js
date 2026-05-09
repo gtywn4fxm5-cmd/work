@@ -72,7 +72,7 @@ async function testGemini() {
   for (const model of models) {
     try {
       console.log(`\n尝试模型: ${model}...`);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
       const r = await axios.post(url, {
         contents: [{ parts: [{ text: '回复OK' }] }]
       }, { timeout: 30000 });
