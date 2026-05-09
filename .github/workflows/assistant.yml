@@ -24,12 +24,14 @@ jobs:
     if: github.event.schedule == '30 0 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'daily') || (github.event_name == 'repository_dispatch' && github.event.action == 'daily_push')
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
 
@@ -49,12 +51,14 @@ jobs:
     if: github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll') || github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
 
@@ -62,7 +66,7 @@ jobs:
         run: rm -f package-lock.json && npm install
 
       - name: Restore offset cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .offset
           key: telegram-offset-v1
