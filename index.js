@@ -3,8 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const { processMessage } = require('./src/main');
 const { getUpdates, confirmUpdates, deleteWebhook, sendMessage } = require('./src/telegram');
+const { fetchFromGoogleAlerts } = require('./src/policy-scraper');
+const { summarizePolicy, generateMeetingPrep, generateChecklist } = require('./src/policy-analyzer');
+const { saveRecord } = require('./src/knowledge');
 
-const POLL_MODE = process.argv.includes('--poll');
 const OFFSET_FILE = path.join(__dirname, '.offset');
 
 function readOffset() {
@@ -28,47 +30,185 @@ async function handleUpdate(update) {
   if (!message || !message.text) return;
 
   const chatId = message.chat.id;
-  const text = message.text;
+  const text = message.text.trim();
 
-  if (text.startsWith('/start')) {
-    await sendMessage(chatId, `🤖 跨境金融AI助手 v2.0
+  if (text === '/start') {
+    await sendMessage(chatId, `🤖 跨境金融AI助手 v3.0
 
-我可以帮你：
-📋 跨境架构方案设计
-🔍 法规政策查询（ODI/CRS/FATCA）
-📊 银行准入与开户流程
-⚠️ 合规风险评估
-📝 文档摘要与翻译
+核心功能：
+� /policy   - 今日政策简报（每日自动推送）
+� /checklist - 生成材料清单（如: /checklist 香港 ODI）
+🤝 /meeting  - 会议速读卡（如: /meeting 香港公司注册咨询）
+❓ /ask      - 业务问答（如: /ask ODI备案流程）
+📊 /status   - 系统状态
 
-直接发送你的问题即可！
-
-示例：
-• 香港公司注册需要什么资料？
-• ODI备案流程是什么？
-• 新加坡银行开户要求`);
+直接发消息 = /ask 模式`);
     return;
   }
 
-  if (text.startsWith('/help')) {
-    await sendMessage(chatId, `使用说明：
+  if (text === '/help') {
+    await sendMessage(chatId, `� 使用指南
 
-1️⃣ 直接发送问题，AI会自动：
-   - 提取关键信息
-   - 查询知识库
-   - 生成专业回答
-   - 进行风险审查
+📰 /policy
+  每日8:30自动推送，也可手动触发
+  自动扫描跨境金融相关政策更新
 
-2️⃣ 回答包含四个部分：
-   📋 可执行结论
-   📎 需准备的资料
-   ⚠️ 风险点
-   🔍 下一步建议
+📋 /checklist [地区] [业务]
+  生成完整的材料清单和风险检查表
+  例: /checklist 香港 公司注册
+  例: /checklist 新加坡 ODI
 
-3️⃣ 所有回答自动保存到Notion`);
+🤝 /meeting [会议主题]
+  生成会议速读卡
+  例: /meeting 香港公司注册咨询
+  例: /meeting 迪拜投资架构讨论
+
+❓ /ask [问题]
+  跨境金融业务问答
+  例: /ask ODI备案需要什么材料
+
+📊 /status
+  查看系统运行状态`);
+    return;
+  }
+
+  if (text === '/policy') {
+    await handlePolicyCommand(chatId);
+    return;
+  }
+
+  if (text.startsWith('/checklist')) {
+    const args = text.replace('/checklist', '').trim();
+    await handleChecklistCommand(chatId, args);
+    return;
+  }
+
+  if (text.startsWith('/meeting')) {
+    const args = text.replace('/meeting', '').trim();
+    await handleMeetingCommand(chatId, args);
+    return;
+  }
+
+  if (text.startsWith('/ask')) {
+    const question = text.replace('/ask', '').trim();
+    await processMessage(chatId, question || text);
+    return;
+  }
+
+  if (text === '/status') {
+    await sendMessage(chatId, `📊 系统状态\n\n✅ Telegram Bot: 运行中\n✅ GitHub Actions: 定时执行\n✅ Notion: 已连接\n⏰ 每日政策推送: 8:30 (UTC+8)`);
     return;
   }
 
   await processMessage(chatId, text);
+}
+
+async function handlePolicyCommand(chatId) {
+  await sendMessage(chatId, '🔍 正在扫描政策更新，请稍候...');
+
+  try {
+    const policyItems = await fetchFromGoogleAlerts();
+
+    if (policyItems.length === 0) {
+      await sendMessage(chatId, '📰 今日暂无新的跨境金融政策更新。');
+      return;
+    }
+
+    const summary = await summarizePolicy(policyItems);
+    await sendMessage(chatId, summary);
+
+    await saveRecord(
+      `政策简报 - ${new Date().toLocaleDateString('zh-CN')}`,
+      summary,
+      '政策更新',
+      '中国',
+      'medium'
+    );
+  } catch (error) {
+    console.error('政策推送失败:', error);
+    await sendMessage(chatId, `❌ 政策扫描失败: ${error.message}`);
+  }
+}
+
+async function handleChecklistCommand(chatId, args) {
+  const parts = args.split(/\s+/);
+  const region = parts[0] || '通用';
+  const businessType = parts.slice(1).join(' ') || '通用';
+
+  await sendMessage(chatId, `📋 正在生成材料清单...\n地区: ${region}\n业务: ${businessType}`);
+
+  try {
+    const checklist = await generateChecklist(businessType, region);
+    await sendMessage(chatId, checklist);
+
+    await saveRecord(
+      `材料清单 - ${region} - ${businessType}`,
+      checklist,
+      businessType,
+      region,
+      'low'
+    );
+  } catch (error) {
+    console.error('材料清单生成失败:', error);
+    await sendMessage(chatId, `❌ 生成失败: ${error.message}`);
+  }
+}
+
+async function handleMeetingCommand(chatId, args) {
+  if (!args) {
+    await sendMessage(chatId, '请输入会议主题，例如：\n/meeting 香港公司注册咨询');
+    return;
+  }
+
+  await sendMessage(chatId, `🤝 正在准备会议速读卡...\n主题: ${args}`);
+
+  try {
+    const prep = await generateMeetingPrep(args);
+    await sendMessage(chatId, prep);
+
+    await saveRecord(
+      `会议速读卡 - ${args}`,
+      prep,
+      '会议准备',
+      null,
+      'low'
+    );
+  } catch (error) {
+    console.error('会议速读卡生成失败:', error);
+    await sendMessage(chatId, `❌ 生成失败: ${error.message}`);
+  }
+}
+
+async function runDailyPolicyPush() {
+  console.log('� 执行每日政策推送...');
+
+  try {
+    const policyItems = await fetchFromGoogleAlerts();
+
+    if (policyItems.length === 0) {
+      console.log('今日无新政策更新');
+      return;
+    }
+
+    const summary = await summarizePolicy(policyItems);
+
+    const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+    if (CHAT_ID) {
+      await sendMessage(CHAT_ID, `🌅 早上好！这是今日跨境金融政策简报：\n\n${summary}`);
+    }
+
+    await saveRecord(
+      `政策简报 - ${new Date().toLocaleDateString('zh-CN')}`,
+      summary,
+      '政策更新',
+      '中国',
+      'medium'
+    );
+
+    console.log('✅ 每日政策推送完成');
+  } catch (error) {
+    console.error('每日政策推送失败:', error);
+  }
 }
 
 async function startPolling() {
@@ -92,8 +232,7 @@ async function startPolling() {
 }
 
 async function runOnce() {
-  console.log('⚡ 单次执行模式（GitHub Actions）...');
-
+  console.log('⚡ 单次执行模式...');
   const updates = await getUpdates(0);
   if (updates.length === 0) {
     console.log('没有新消息');
@@ -102,7 +241,6 @@ async function runOnce() {
 
   let lastUpdateId = 0;
   let processed = 0;
-
   for (const update of updates) {
     await handleUpdate(update);
     lastUpdateId = update.update_id;
@@ -114,8 +252,12 @@ async function runOnce() {
   console.log(`✅ 处理了 ${processed} 条消息`);
 }
 
-if (POLL_MODE) {
+const mode = process.argv[2];
+
+if (mode === '--poll') {
   startPolling();
+} else if (mode === '--daily') {
+  runDailyPolicyPush();
 } else {
   runOnce();
 }
