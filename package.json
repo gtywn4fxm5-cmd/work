@@ -1,0 +1,16 @@
+{
+  "name": "ai-work-assistant",
+  "version": "2.0.0",
+  "description": "AI跨境金融工作助手 - 6模块架构",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js",
+    "poll": "node index.js --poll"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.19.0",
+    "@notionhq/client": "^2.2.15",
+    "axios": "^1.6.8",
+    "dotenv": "^16.4.5"
+  }
+}

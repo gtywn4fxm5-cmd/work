@@ -1,0 +1,57 @@
+name: AI Work Assistant v2
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types:
+      - telegram_message
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Restore offset cache
+        uses: actions/cache@v4
+        with:
+          path: .offset
+          key: telegram-offset-v1
+          restore-keys: |
+            telegram-offset-
+
+      - name: Process messages (scheduled)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: node index.js
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+      - name: Process message (webhook triggered)
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          node -e "
+            const { processMessage } = require('./src/main');
+            const chatId = '${{ github.event.client_payload.chatId }}';
+            const text = '${{ github.event.client_payload.text }}';
+            processMessage(chatId, text).then(r => console.log('Done:', r));
+          "
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
