@@ -98,10 +98,8 @@ async function diagnose() {
   // 7. 测试Gemini API
   console.log('\n📋 第7步：测试Gemini API');
   const geminiModels = [
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-pro',
-    'gemini-2.0-flash'
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash'
   ];
   let geminiSuccess = false;
   for (const model of geminiModels) {
