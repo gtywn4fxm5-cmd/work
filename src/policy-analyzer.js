@@ -3,6 +3,15 @@ const config = require('./config');
 
 const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
 
+const BUSINESS_ROUTES = [
+  { key: '开户', label: '🏦 开户', desc: '影响银行/KYC开户流程' },
+  { key: '架构', label: '🏗️ 架构', desc: '影响主体架构搭建' },
+  { key: '资金', label: '💰 资金出境', desc: '影响跨境资金流动' },
+  { key: '税务', label: '📋 税务', desc: '影响税务申报/筹划' },
+  { key: '融资', label: '📈 融资', desc: '影响融资路径/条件' },
+  { key: '参考', label: '📎 参考', desc: '仅供参考，不必马上处理' }
+];
+
 async function summarizePolicy(policyItems) {
   if (!policyItems || policyItems.length === 0) {
     return '今日无新政策更新。';
@@ -14,7 +23,7 @@ async function summarizePolicy(policyItems) {
     return `[${i + 1}] ${item.title}\n    来源: ${item.keyword || '政策网站'}\n    日期: ${item.pubDate}\n    摘要: ${item.description || '无'}`;
   }).join('\n\n');
 
-  const prompt = `你是一名跨境金融政策分析师，专精企业出海服务。请对以下今日政策/新闻进行摘要分析。
+  const prompt = `你是一名跨境金融政策分析师，专精企业出海服务。请对以下今日政策/新闻进行业务路由分析。
 
 ## 今日政策/新闻列表
 
@@ -22,24 +31,38 @@ ${policyText}
 
 ## 输出要求
 
-请按以下格式输出：
-
 ### 📰 今日跨境金融政策简报
 *${new Date().toLocaleDateString('zh-CN')}*
 
 ---
 
-**🔥 重点关注的政策（需要立即跟进）**
+**� 需要紧急跟进的政策**
 
-（列出1-3条最重要的，说明为什么重要、对谁有影响）
+（1-3条最重要的，说明：①为什么重要 ②影响哪类客户 ③影响哪个业务环节）
 
 **📋 一般政策更新**
 
 （简要列出其他更新，每条一句话）
 
+---
+
+**🔀 业务路由分析**
+
+请将每条政策归类到以下业务路由中：
+
+| 路由 | 涉及政策 | 影响判断 | 是否需跟进 |
+|------|---------|---------|-----------|
+| 🏦 开户 | ... | ... | 是/否 |
+| 🏗️ 架构 | ... | ... | 是/否 |
+| 💰 资金出境 | ... | ... | 是/否 |
+| 📋 税务 | ... | ... | 是/否 |
+| 📈 融资 | ... | ... | 是/否 |
+| 📎 参考 | ... | ... | 否 |
+
+---
+
 **💡 对制造业出海的影响判断**
 
-（从以下维度分析）
 - ODI备案：是否有变化
 - 资金出入境：是否有新限制或便利
 - 税务：是否有新规
@@ -48,7 +71,7 @@ ${policyText}
 
 **✅ 今日建议跟进事项**
 
-（列出1-3件你今天应该做的事）`;
+（1-3件你今天应该做的事，按优先级排列）`;
 
   try {
     const result = await model.generateContent(prompt);
@@ -70,12 +93,10 @@ ${clientInfo ? `- 客户信息：${clientInfo}` : ''}
 
 ## 输出要求
 
-请按以下格式输出：
-
 ### 📋 会议速读卡
 
 **🎯 这次会议可能谈什么**
-（列出3-5个核心议题）
+（3-5个核心议题）
 
 **❓ 你要问的5个关键问题**
 1. ...
@@ -90,7 +111,7 @@ ${clientInfo ? `- 客户信息：${clientInfo}` : ''}
 3. 备用的：
 
 **⚠️ 最容易被问到的点**
-（列出3-5个客户/老板最可能问你的问题，以及建议回答方向）
+（3-5个客户/老板最可能问你的问题，以及建议回答方向）
 
 **🛡️ 怎么回答比较稳**
 （对于不确定的问题，给出安全的回答模板）
@@ -160,4 +181,4 @@ async function generateChecklist(businessType, region) {
   }
 }
 
-module.exports = { summarizePolicy, generateMeetingPrep, generateChecklist };
+module.exports = { summarizePolicy, generateMeetingPrep, generateChecklist, BUSINESS_ROUTES };
