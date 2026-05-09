@@ -2,7 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { processMessage } = require('./src/main');
-const { getUpdates, confirmUpdates, deleteWebhook, sendMessage } = require('./src/telegram');
+const { getUpdates, confirmUpdates, deleteWebhook, sendMessage, setCommands } = require('./src/telegram');
 const { fetchFromGoogleAlerts } = require('./src/policy-scraper');
 const { summarizePolicy, generateMeetingPrep, generateChecklist } = require('./src/policy-analyzer');
 const { triage, formatTriageCard, generateDraft, logProject, formatProjectLog } = require('./src/triage');
@@ -326,6 +326,8 @@ async function runDailyPolicyPush() {
 async function startPolling() {
   console.log('🔄 启动轮询模式...');
   await deleteWebhook();
+  await setCommands();
+  console.log('✅ 命令菜单已注册');
 
   let offset = readOffset();
   while (true) {
