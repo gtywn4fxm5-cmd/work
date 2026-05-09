@@ -31,7 +31,19 @@ async function sendMessage(chatId, text) {
         }
       );
     } catch (error) {
-      console.error('Telegram send error:', error.response?.data || error.message);
+      const errDetail = error.response?.data || error.message;
+      console.error('Telegram send error (Markdown):', JSON.stringify(errDetail));
+      try {
+        await axios.post(
+          `https://api.telegram.org/bot${config.telegram.botToken}/sendMessage`,
+          {
+            chat_id: chatId,
+            text: chunk
+          }
+        );
+      } catch (fallbackError) {
+        console.error('Telegram send error (fallback):', fallbackError.message);
+      }
     }
   }
 }
