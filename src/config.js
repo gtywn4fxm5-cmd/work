@@ -3,7 +3,7 @@ require('dotenv').config();
 module.exports = {
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
-    model: 'gemini-2.5-flash-preview-05-20'
+    model: 'gemini-1.5-flash'
   },
   notion: {
     apiKey: process.env.NOTION_API_KEY,
