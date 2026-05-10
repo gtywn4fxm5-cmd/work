@@ -71,7 +71,8 @@ jobs:
             const { sendMessage } = require('./src/telegram');
             const { processMessage } = require('./src/main');
             const { triage, formatTriageCard, generateDraft, logProject, formatProjectLog } = require('./src/triage');
-            const { fetchFromGoogleAlerts, summarizePolicy, generateChecklist, generateMeetingPrep } = require('./src/policy-analyzer');
+            const { fetchFromGoogleAlerts } = require('./src/policy-scraper');
+            const { summarizePolicy, generateChecklist, generateMeetingPrep } = require('./src/policy-analyzer');
             const { saveRecord } = require('./src/knowledge');
 
             const chatId = '${{ github.event.client_payload.chatId }}';
