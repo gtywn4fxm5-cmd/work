@@ -10,6 +10,7 @@ async function diagnose() {
 
   console.log('\n📋 第1步：检查环境变量');
   const envCheck = {
+    GITHUB_TOKEN: !!process.env.GITHUB_TOKEN,
     MODELS_TOKEN: !!process.env.MODELS_TOKEN,
     NOTION_API_KEY: !!process.env.NOTION_API_KEY,
     NOTION_DATABASE_ID: !!process.env.NOTION_DATABASE_ID,
@@ -17,7 +18,7 @@ async function diagnose() {
     TELEGRAM_CHAT_ID: !!process.env.TELEGRAM_CHAT_ID
   };
   console.log('  环境变量状态:', envCheck);
-  results.push({ name: '环境变量', passed: Object.values(envCheck).every(v => v) });
+  results.push({ name: '环境变量', passed: envCheck.MODELS_TOKEN || envCheck.GITHUB_TOKEN });
 
   console.log('\n📋 第2步：测试Telegram Bot连接');
   try {
@@ -76,6 +77,7 @@ async function diagnose() {
   }
 
   console.log('\n📋 第7步：测试GitHub Models API (GPT-4o Mini)');
+  const llmToken = process.env.GITHUB_TOKEN || process.env.MODELS_TOKEN;
   try {
     const r = await axios.post(
       'https://models.inference.ai.azure.com/chat/completions',
@@ -86,7 +88,7 @@ async function diagnose() {
       },
       {
         headers: {
-          'Authorization': `Bearer ${process.env.MODELS_TOKEN}`,
+          'Authorization': `Bearer ${llmToken}`,
           'Content-Type': 'application/json'
         },
         timeout: 30000

@@ -1,10 +1,9 @@
 name: AI Work Assistant v3
 
 on:
-  # 临时禁用所有触发器，停止无限触发
-  # schedule:
-  #   - cron: '30 0 * * *'
-  #   - cron: '*/5 * * * *'
+  schedule:
+    - cron: '30 0 * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -15,14 +14,10 @@ on:
         options:
           - poll
           - daily
-  # repository_dispatch:
-  #   types:
-  #     - telegram_message
-  #     - daily_push
 
 jobs:
   daily-policy-push:
-    if: github.event.schedule == '30 0 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'daily') || (github.event_name == 'repository_dispatch' && github.event.action == 'daily_push')
+    if: github.event.schedule == '30 0 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'daily')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -49,18 +44,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-      - name: Trigger next poll
-        if: always()
-        run: |
-          curl -s -X POST \
-            -H "Authorization: Bearer ${{ secrets.WORKFLOW_PAT }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/assistant.yml/dispatches" \
-            -d '{"ref":"main","inputs":{"mode":"poll"}}'
-        continue-on-error: true
-
   poll-messages:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || github.event_name == 'schedule'
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -85,9 +70,8 @@ jobs:
           restore-keys: |
             telegram-offset-
 
-      - name: Process messages (scheduled)
+      - name: Process messages
         id: process_messages
-        if: (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll') || github.event_name == 'schedule'
         run: |
           OUTPUT=$(node index.js)
           echo "$OUTPUT"
@@ -106,37 +90,19 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-      - name: Trigger next poll (fallback)
-        if: always() && steps.process_messages.outputs.has_messages == 'true'
+      - name: Trigger next poll
+        if: steps.process_messages.outputs.has_messages == 'true'
         run: |
-          echo "=== Workflow层自触发 ==="
+          echo "=== 有未处理消息，触发下一次poll ==="
           RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST \
             -H "Authorization: Bearer ${{ secrets.WORKFLOW_PAT }}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/assistant.yml/dispatches" \
             -d '{"ref":"main","inputs":{"mode":"poll"}}')
-          echo "$RESPONSE"
           HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
           if [ "$HTTP_CODE" = "204" ]; then
-            echo "✅ 自触发成功 (204 No Content)"
+            echo "✅ 自触发成功"
           else
             echo "❌ 自触发失败 HTTP $HTTP_CODE"
           fi
         continue-on-error: true
-
-      - name: Process message (webhook triggered)
-        if: github.event_name == 'repository_dispatch'
-        run: |
-          node -e "
-            const { processMessage } = require('./src/main');
-            const chatId = '${{ github.event.client_payload.chatId }}';
-            const text = '${{ github.event.client_payload.text }}';
-            processMessage(chatId, text).then(r => console.log('Done:', r));
-          "
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
-          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

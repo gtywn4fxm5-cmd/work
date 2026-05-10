@@ -24,6 +24,7 @@ jobs:
       - name: Run self test
         run: node selftest.js
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}

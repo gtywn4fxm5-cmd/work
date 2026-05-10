@@ -389,36 +389,6 @@ async function runOnce() {
   const newOffset = lastUpdateId + 1;
   writeOffset(newOffset);
   console.log(`✅ 完成: 成功${processed}条, 失败${failed}条, 新offset=${newOffset}`);
-
-  await triggerNextPoll();
-}
-
-async function triggerNextPoll() {
-  const token = process.env.WORKFLOW_PAT || process.env.GITHUB_TOKEN;
-  const repo = process.env.GITHUB_REPOSITORY;
-  if (!token || !repo) {
-    console.log('⚠️ 无触发token，跳过自触发（本地模式）');
-    return;
-  }
-
-  try {
-    await axios.post(
-      `https://api.github.com/repos/${repo}/actions/workflows/assistant.yml/dispatches`,
-      { ref: 'main', inputs: { mode: 'poll' } },
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github+json',
-          'User-Agent': 'ai-work-assistant'
-        }
-      }
-    );
-    console.log('🔗 已触发下一次poll');
-  } catch (error) {
-    const status = error.response?.status;
-    const msg = error.response?.data?.message || error.message;
-    console.error(`触发下次poll失败 (${status}): ${msg}`);
-  }
 }
 
 const mode = process.argv[2];
