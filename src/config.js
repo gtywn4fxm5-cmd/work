@@ -3,7 +3,7 @@ require('dotenv').config();
 module.exports = {
   llm: {
     provider: 'github',
-    token: process.env.MODELS_TOKEN,
+    token: process.env.MODELS_TOKEN || process.env.GITHUB_TOKEN,
     endpoint: 'https://models.inference.ai.azure.com/chat/completions',
     model: 'gpt-4o-mini'
   },
