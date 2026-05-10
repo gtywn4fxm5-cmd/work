@@ -339,11 +339,13 @@ async function runOnce() {
   await setup();
 
   console.log('\n🔑 快速验证LLM Token...');
+  const llmToken = process.env.GITHUB_TOKEN || process.env.MODELS_TOKEN;
+  console.log('  使用token来源:', process.env.GITHUB_TOKEN ? 'GITHUB_TOKEN(内置)' : 'MODELS_TOKEN');
   try {
     const testResult = await axios.post(
       'https://models.inference.ai.azure.com/chat/completions',
       { model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'OK' }], max_tokens: 5 },
-      { headers: { 'Authorization': `Bearer ${process.env.MODELS_TOKEN}`, 'Content-Type': 'application/json' }, timeout: 15000 }
+      { headers: { 'Authorization': `Bearer ${llmToken}`, 'Content-Type': 'application/json' }, timeout: 15000 }
     );
     console.log('✅ LLM Token有效:', testResult.data.choices[0].message.content);
   } catch (e) {
@@ -393,10 +395,10 @@ async function runOnce() {
 }
 
 async function triggerNextPoll() {
-  const token = process.env.GITHUB_TOKEN;
+  const token = process.env.WORKFLOW_PAT || process.env.GITHUB_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
   if (!token || !repo) {
-    console.log('⚠️ 无GITHUB_TOKEN，跳过自触发（本地模式）');
+    console.log('⚠️ 无触发token，跳过自触发（本地模式）');
     return;
   }
 
