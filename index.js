@@ -1,6 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 const { processMessage } = require('./src/main');
 const { getUpdates, confirmUpdates, deleteWebhook, sendMessage, setCommands } = require('./src/telegram');
 const { fetchFromGoogleAlerts } = require('./src/policy-scraper');
