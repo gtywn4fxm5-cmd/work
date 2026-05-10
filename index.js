@@ -362,8 +362,7 @@ async function runOnce() {
   console.log(`获取到 ${updates.length} 条消息`);
 
   if (updates.length === 0) {
-    console.log('没有新消息');
-    await triggerNextPoll();
+    console.log('没有新消息，停止自触发链');
     return;
   }
 

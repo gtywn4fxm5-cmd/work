@@ -3,6 +3,7 @@ name: AI Work Assistant v3
 on:
   schedule:
     - cron: '30 0 * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -58,7 +59,7 @@ jobs:
         continue-on-error: true
 
   poll-messages:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -84,8 +85,16 @@ jobs:
             telegram-offset-
 
       - name: Process messages (scheduled)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll'
-        run: node index.js
+        id: process_messages
+        if: (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll') || github.event_name == 'schedule'
+        run: |
+          OUTPUT=$(node index.js)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -q "获取到 0 条消息"; then
+            echo "has_messages=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_messages=true" >> $GITHUB_OUTPUT
+          fi
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -97,7 +106,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: Trigger next poll (fallback)
-        if: always() && github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll'
+        if: always() && steps.process_messages.outputs.has_messages == 'true'
         run: |
           echo "=== Workflow层自触发 ==="
           RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST \
