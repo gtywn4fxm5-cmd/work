@@ -1,7 +1,4 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const config = require('./config');
-
-const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+const { chat, chatJSON } = require('./llm');
 
 const BUSINESS_CATEGORIES = ['开户', 'ODI', '融资', '结算', '税务', '主体搭建', '牌照', '资产配置', '并购', '其他'];
 const RISK_LEVELS = ['低', '中', '高'];
@@ -9,11 +6,14 @@ const URGENCY_LEVELS = ['参考', '关注', '跟进', '紧急'];
 const ENTITY_TYPES = ['贸易型', '投资型', '高净值', '科技企业', '制造业', '矿业/能源', '医疗大健康', '其他'];
 
 async function triage(userInput) {
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-
-  const prompt = `你是一名跨境金融业务分诊专家。请对以下业务问题生成分诊卡。
-
-## 用户输入
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一名跨境金融业务分诊专家。请对业务问题生成分诊卡，严格按JSON格式返回。'
+    },
+    {
+      role: 'user',
+      content: `## 用户输入
 ${userInput}
 
 ## 输出要求（严格按JSON格式）
@@ -33,30 +33,25 @@ ${userInput}
   "who_to_confirm": "需要找谁确认"
 }
 
-只返回JSON，不要其他内容。`;
+只返回JSON，不要其他内容。`
+    }
+  ];
 
-  try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonStr = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(jsonStr);
-  } catch (error) {
-    console.error('分诊失败:', error.message);
-    return {
-      category: '其他',
-      region: '待确认',
-      entity_type: '其他',
-      stage: '其他',
-      risk_level: '中',
-      urgency: '关注',
-      summary: '分诊自动识别失败，需人工判断',
-      policies_to_check: [],
-      sop_needed: [],
-      missing_info: ['无法自动分诊，请人工判断'],
-      next_action: '人工确认业务类型和辖区',
-      who_to_confirm: '直属主管'
-    };
-  }
+  const result = await chatJSON(messages);
+  return result || {
+    category: '其他',
+    region: '待确认',
+    entity_type: '其他',
+    stage: '其他',
+    risk_level: '中',
+    urgency: '关注',
+    summary: '分诊自动识别失败，需人工判断',
+    policies_to_check: [],
+    sop_needed: [],
+    missing_info: ['无法自动分诊，请人工判断'],
+    next_action: '人工确认业务类型和辖区',
+    who_to_confirm: '直属主管'
+  };
 }
 
 function formatTriageCard(t) {
@@ -103,11 +98,14 @@ ${urgencyEmoji} **紧急程度**: ${t.urgency}
 }
 
 async function generateDraft(context, outputType, tone) {
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-
-  const prompt = `你是一名跨境金融商务经理，擅长将内部信息转化为专业的对外沟通文档。
-
-## 内部信息
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一名跨境金融商务经理，擅长将内部信息转化为专业的对外沟通文档。'
+    },
+    {
+      role: 'user',
+      content: `## 内部信息
 ${context}
 
 ## 输出类型
@@ -125,11 +123,12 @@ ${tone || '专业、简洁、有紧迫感但不失礼貌'}
 4. 适当使用项目符号和分段
 5. 结尾附上"如需进一步讨论，欢迎随时联系"
 
-直接输出文档内容，不要解释。`;
+直接输出文档内容，不要解释。`
+    }
+  ];
 
   try {
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return await chat(messages);
   } catch (error) {
     console.error('商务文档生成失败:', error.message);
     return '商务文档生成失败，请稍后重试。';
@@ -137,11 +136,14 @@ ${tone || '专业、简洁、有紧迫感但不失礼貌'}
 }
 
 async function logProject(updateText) {
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-
-  const prompt = `你是一名跨境金融项目管理助手。请从以下项目更新文字中提取结构化信息。
-
-## 更新内容
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一名跨境金融项目管理助手。请从项目更新文字中提取结构化信息，严格按JSON格式返回。'
+    },
+    {
+      role: 'user',
+      content: `## 更新内容
 ${updateText}
 
 ## 输出要求（严格按JSON格式）
@@ -158,27 +160,22 @@ ${updateText}
   "deadline": "截止日期（没有则为null）"
 }
 
-只返回JSON，不要其他内容。`;
+只返回JSON，不要其他内容。`
+    }
+  ];
 
-  try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonStr = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(jsonStr);
-  } catch (error) {
-    console.error('项目日志解析失败:', error.message);
-    return {
-      client_name: '待确认',
-      project_name: '待确认',
-      region: '待确认',
-      current_stage: '待确认',
-      progress_summary: updateText,
-      key_milestone: null,
-      next_step: '人工确认',
-      blocker: null,
-      deadline: null
-    };
-  }
+  const result = await chatJSON(messages);
+  return result || {
+    client_name: '待确认',
+    project_name: '待确认',
+    region: '待确认',
+    current_stage: '待确认',
+    progress_summary: updateText,
+    key_milestone: null,
+    next_step: '人工确认',
+    blocker: null,
+    deadline: null
+  };
 }
 
 function formatProjectLog(p) {

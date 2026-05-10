@@ -1,7 +1,4 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const config = require('./config');
-
-const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+const { chat } = require('./llm');
 
 const BUSINESS_ROUTES = [
   { key: '开户', label: '🏦 开户', desc: '影响银行/KYC开户流程' },
@@ -17,15 +14,18 @@ async function summarizePolicy(policyItems) {
     return '今日无新政策更新。';
   }
 
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-
   const policyText = policyItems.slice(0, 10).map((item, i) => {
     return `[${i + 1}] ${item.title}\n    来源: ${item.keyword || '政策网站'}\n    日期: ${item.pubDate}\n    摘要: ${item.description || '无'}`;
   }).join('\n\n');
 
-  const prompt = `你是一名跨境金融政策分析师，专精企业出海服务。请对以下今日政策/新闻进行业务路由分析。
-
-## 今日政策/新闻列表
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一名跨境金融政策分析师，专精企业出海服务。请对政策/新闻进行业务路由分析。'
+    },
+    {
+      role: 'user',
+      content: `## 今日政策/新闻列表
 
 ${policyText}
 
@@ -71,11 +71,12 @@ ${policyText}
 
 **✅ 今日建议跟进事项**
 
-（1-3件你今天应该做的事，按优先级排列）`;
+（1-3件你今天应该做的事，按优先级排列）`
+    }
+  ];
 
   try {
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return await chat(messages);
   } catch (error) {
     console.error('政策摘要生成失败:', error.message);
     return '政策摘要生成失败，请稍后重试。';
@@ -83,11 +84,14 @@ ${policyText}
 }
 
 async function generateMeetingPrep(meetingTopic, clientInfo) {
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-
-  const prompt = `你是一名跨境金融商务经理的AI助手。请为以下会议准备速读卡。
-
-## 会议信息
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一名跨境金融商务经理的AI助手。请为会议准备速读卡。'
+    },
+    {
+      role: 'user',
+      content: `## 会议信息
 - 主题：${meetingTopic}
 ${clientInfo ? `- 客户信息：${clientInfo}` : ''}
 
@@ -117,11 +121,12 @@ ${clientInfo ? `- 客户信息：${clientInfo}` : ''}
 （对于不确定的问题，给出安全的回答模板）
 
 **🚩 红线提醒**
-（绝对不能承诺/不能说的事项）`;
+（绝对不能承诺/不能说的事项）`
+    }
+  ];
 
   try {
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return await chat(messages);
   } catch (error) {
     console.error('会议速读卡生成失败:', error.message);
     return '会议速读卡生成失败，请稍后重试。';
@@ -129,11 +134,14 @@ ${clientInfo ? `- 客户信息：${clientInfo}` : ''}
 }
 
 async function generateChecklist(businessType, region) {
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-
-  const prompt = `你是一名跨境金融合规专家。请为以下业务生成材料清单和风险检查表。
-
-## 业务信息
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一名跨境金融合规专家。请为业务生成材料清单和风险检查表。'
+    },
+    {
+      role: 'user',
+      content: `## 业务信息
 - 业务类型：${businessType || '通用'}
 - 目标地区：${region || '通用'}
 
@@ -170,11 +178,12 @@ async function generateChecklist(businessType, region) {
 ### 🔍 常见拒绝原因
 1. ...
 2. ...
-3. ...`;
+3. ...`
+    }
+  ];
 
   try {
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return await chat(messages);
   } catch (error) {
     console.error('材料清单生成失败:', error.message);
     return '材料清单生成失败，请稍后重试。';

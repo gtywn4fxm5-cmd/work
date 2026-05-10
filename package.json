@@ -1,14 +1,13 @@
 {
   "name": "ai-work-assistant",
-  "version": "2.0.0",
-  "description": "AI跨境金融工作助手 - 6模块架构",
+  "version": "3.0.0",
+  "description": "跨境业务分诊系统 - GitHub Models + GPT-4o Mini",
   "scripts": {
     "start": "node index.js",
-    "test": "node test.js",
+    "test": "node selftest.js",
     "poll": "node index.js --poll"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
     "@notionhq/client": "^2.2.15",
     "axios": "^1.6.8",
     "dotenv": "^16.4.5"

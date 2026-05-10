@@ -1,11 +1,14 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const config = require('./config');
-
-const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+const { chat, chatJSON } = require('./llm');
 
 async function extractFacts(userMessage) {
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-  const prompt = `你是一个跨境金融信息提取专家。从用户消息中提取以下关键要素，以JSON格式返回：
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一个跨境金融信息提取专家。从用户消息中提取关键要素，以JSON格式返回。'
+    },
+    {
+      role: 'user',
+      content: `从以下消息中提取关键要素，以JSON格式返回：
 - region: 涉及的国家或地区（如"香港"、"迪拜"、"新加坡"），没有则为null
 - business_type: 业务类型（如"ODI"、"公司注册"、"银行开户"、"税务筹划"、"融资"），没有则为null
 - amount: 涉及的金额或规模，没有则为null
@@ -16,23 +19,23 @@ async function extractFacts(userMessage) {
 用户消息：
 ${userMessage}
 
-只返回JSON，不要其他内容。`;
+只返回JSON，不要其他内容。`
+    }
+  ];
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  try {
-    const jsonStr = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(jsonStr);
-  } catch {
-    return { region: null, business_type: null, amount: null, entity_type: null, constraints: null, urgency: '中' };
-  }
+  const result = await chatJSON(messages);
+  return result || { region: null, business_type: null, amount: null, entity_type: null, constraints: null, urgency: '中' };
 }
 
 async function generateDraft(userMessage, facts, knowledgeContext) {
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-  const prompt = `你是一名资深跨境金融顾问，专精企业出海服务。请基于以下信息生成专业回答。
-
-## 用户问题
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一名资深跨境金融顾问，专精企业出海服务。请基于提供的信息生成专业回答。'
+    },
+    {
+      role: 'user',
+      content: `## 用户问题
 ${userMessage}
 
 ## 提取的关键事实
@@ -54,17 +57,22 @@ ${knowledgeContext || '暂无匹配的SOP或案例'}
 （列出可能存在的合规风险、政策变动风险、信息不完整的地方）
 
 ### 🔍 下一步建议
-（明确指出接下来应该做什么，以及需要人工确认的环节）`;
+（明确指出接下来应该做什么，以及需要人工确认的环节）`
+    }
+  ];
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  return await chat(messages);
 }
 
 async function verifyDraft(draft, facts) {
-  const model = genAI.getGenerativeModel({ model: config.gemini.model });
-  const prompt = `你是一名跨境金融合规审查员。请审查以下AI生成的咨询回答，检查是否存在事实错误、合规风险或遗漏。
-
-## 提取的关键事实
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一名跨境金融合规审查员。请审查AI生成的咨询回答，检查是否存在事实错误、合规风险或遗漏。'
+    },
+    {
+      role: 'user',
+      content: `## 提取的关键事实
 ${JSON.stringify(facts, null, 2)}
 
 ## AI生成的回答
@@ -78,22 +86,18 @@ ${draft}
 4. corrections: 需要修正的内容（数组，每项包含 original 和 correction）
 5. additional_risks: 额外风险提示（数组）
 
-只返回JSON，不要其他内容。`;
+只返回JSON，不要其他内容。`
+    }
+  ];
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  try {
-    const jsonStr = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(jsonStr);
-  } catch {
-    return {
-      fact_check: 'warning',
-      compliance_risk: 'medium',
-      missing_info: ['无法完成自动审查，请人工核实'],
-      corrections: [],
-      additional_risks: ['AI审查模块异常，建议人工复核全部内容']
-    };
-  }
+  const result = await chatJSON(messages);
+  return result || {
+    fact_check: 'warning',
+    compliance_risk: 'medium',
+    missing_info: ['无法完成自动审查，请人工核实'],
+    corrections: [],
+    additional_risks: ['AI审查模块异常，建议人工复核全部内容']
+  };
 }
 
 module.exports = { extractFacts, generateDraft, verifyDraft };
