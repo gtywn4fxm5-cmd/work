@@ -86,7 +86,7 @@ async function diagnose() {
       },
       {
         headers: {
-          'Authorization': `Bearer ${process.env.GITHUB_MODELS_TOKEN}`,
+          'Authorization': `Bearer ${process.env.MODELS_TOKEN}`,
           'Content-Type': 'application/json'
         },
         timeout: 30000

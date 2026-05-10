@@ -41,7 +41,7 @@ jobs:
       - name: Run daily policy push
         run: node index.js --daily
         env:
-          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_MODELS_TOKEN }}
+          MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -77,7 +77,7 @@ jobs:
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll')
         run: node index.js
         env:
-          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_MODELS_TOKEN }}
+          MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -93,7 +93,7 @@ jobs:
             processMessage(chatId, text).then(r => console.log('Done:', r));
           "
         env:
-          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_MODELS_TOKEN }}
+          MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
