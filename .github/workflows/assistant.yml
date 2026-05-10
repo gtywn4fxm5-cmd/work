@@ -48,7 +48,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
   poll-messages:
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '*/15 * * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
