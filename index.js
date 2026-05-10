@@ -332,9 +332,24 @@ async function runOnce() {
   console.log('  GITHUB_TOKEN存在:', !!process.env.GITHUB_TOKEN);
   console.log('  GITHUB_REPOSITORY:', process.env.GITHUB_REPOSITORY);
   console.log('  MODELS_TOKEN存在:', !!process.env.MODELS_TOKEN);
+  console.log('  MODELS_TOKEN前10位:', process.env.MODELS_TOKEN?.substring(0, 10));
   console.log('  TELEGRAM_BOT_TOKEN存在:', !!process.env.TELEGRAM_BOT_TOKEN);
 
   await setup();
+
+  console.log('\n🔑 快速验证LLM Token...');
+  try {
+    const testResult = await axios.post(
+      'https://models.inference.ai.azure.com/chat/completions',
+      { model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'OK' }], max_tokens: 5 },
+      { headers: { 'Authorization': `Bearer ${process.env.MODELS_TOKEN}`, 'Content-Type': 'application/json' }, timeout: 15000 }
+    );
+    console.log('✅ LLM Token有效:', testResult.data.choices[0].message.content);
+  } catch (e) {
+    console.error('❌ LLM Token无效!');
+    console.error('   HTTP状态:', e.response?.status);
+    console.error('   错误信息:', e.response?.data?.error?.message || e.message);
+  }
 
   const savedOffset = readOffset();
   console.log(`  已保存的offset: ${savedOffset}`);
