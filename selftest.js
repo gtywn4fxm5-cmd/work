@@ -78,7 +78,7 @@ async function diagnose() {
   console.log('\n📋 第7步：测试GitHub Models API (GPT-4o Mini)');
   try {
     const r = await axios.post(
-      'https://models.inference.ai.azure.com/v1/chat/completions',
+      'https://models.inference.ai.azure.com/chat/completions',
       {
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: '回复OK' }],

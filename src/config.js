@@ -4,7 +4,7 @@ module.exports = {
   llm: {
     provider: 'github',
     token: process.env.GITHUB_MODELS_TOKEN,
-    endpoint: 'https://models.inference.ai.azure.com/v1/chat/completions',
+    endpoint: 'https://models.inference.ai.azure.com/chat/completions',
     model: 'gpt-4o-mini'
   },
   notion: {
