@@ -3,7 +3,6 @@ name: AI Work Assistant v3
 on:
   schedule:
     - cron: '30 0 * * *'
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -47,8 +46,18 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
+      - name: Trigger next poll
+        if: always()
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.WORKFLOW_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/assistant.yml/dispatches" \
+            -d '{"ref":"main","inputs":{"mode":"poll"}}'
+        continue-on-error: true
+
   poll-messages:
-    if: github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll') || github.event_name == 'repository_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -74,7 +83,7 @@ jobs:
             telegram-offset-
 
       - name: Process messages (scheduled)
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll')
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'poll'
         run: node index.js
         env:
           MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
@@ -82,6 +91,8 @@ jobs:
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Process message (webhook triggered)
         if: github.event_name == 'repository_dispatch'
