@@ -3,5 +3,5 @@ main = "index.js"
 compatibility_date = "2024-01-01"
 
 [vars]
-GITHUB_REPO = "wisteria020801/work"
+GITHUB_REPO = "gtywn4fxm5-cmd/work"
 ALLOWED_CHAT_ID = "8707288756"

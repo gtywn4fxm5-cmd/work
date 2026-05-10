@@ -68,17 +68,97 @@ jobs:
       - name: Process message
         run: |
           node -e "
+            const { sendMessage } = require('./src/telegram');
             const { processMessage } = require('./src/main');
+            const { triage, formatTriageCard, generateDraft, logProject, formatProjectLog } = require('./src/triage');
+            const { fetchFromGoogleAlerts, summarizePolicy, generateChecklist, generateMeetingPrep } = require('./src/policy-analyzer');
+            const { saveRecord } = require('./src/knowledge');
+
             const chatId = '${{ github.event.client_payload.chatId }}';
             const text = '${{ github.event.client_payload.text }}';
+
             console.log('收到消息: chatId=' + chatId + ' text=' + text);
-            processMessage(chatId, text).then(r => {
-              console.log('处理完成:', JSON.stringify(r));
-              process.exit(r.success ? 0 : 1);
-            }).catch(e => {
-              console.error('处理失败:', e);
-              process.exit(1);
-            });
+
+            async function handle() {
+              if (text === '/start') {
+                await sendMessage(chatId, '🤖 跨境业务分诊系统 v4.0\n\n核心功能：\n🏷️ /triage  - 业务分诊卡\n📰 /policy  - 今日政策简报\n📋 /checklist - 材料清单\n🤝 /meeting - 会议速读卡\n📝 /draft   - 商务文档生成\n📌 /log     - 项目进度记录\n❓ /ask     - 业务问答\n📊 /status  - 系统状态');
+                return;
+              }
+
+              if (text === '/help') {
+                await sendMessage(chatId, '📖 使用指南\n\n🏷️ /triage [业务描述]\n📰 /policy\n📋 /checklist [地区] [业务]\n🤝 /meeting [主题]\n📝 /draft [要求]\n📌 /log [进度更新]\n❓ /ask [问题]');
+                return;
+              }
+
+              if (text === '/status') {
+                await sendMessage(chatId, '📊 系统状态\n\n✅ Telegram Bot: 运行中\n✅ GitHub Actions: 运行中\n⏰ 每日政策推送: 8:30 (UTC+8)\n🔀 业务路由: 开户/架构/资金/税务/融资');
+                return;
+              }
+
+              if (text === '/policy') {
+                await sendMessage(chatId, '🔍 正在扫描政策更新...');
+                const items = await fetchFromGoogleAlerts();
+                if (items.length === 0) { await sendMessage(chatId, '📰 今日暂无新政策'); return; }
+                const summary = await summarizePolicy(items);
+                await sendMessage(chatId, summary);
+                return;
+              }
+
+              if (text.startsWith('/triage')) {
+                const input = text.replace('/triage', '').trim();
+                if (!input) { await sendMessage(chatId, '请输入业务描述，例：/triage 制造业客户要在迪拜设公司'); return; }
+                await sendMessage(chatId, '🏷️ 正在生成分诊卡...');
+                const card = await triage(input);
+                await sendMessage(chatId, formatTriageCard(card));
+                return;
+              }
+
+              if (text.startsWith('/checklist')) {
+                const args = text.replace('/checklist', '').trim();
+                await sendMessage(chatId, '📋 正在生成材料清单...');
+                const checklist = await generateChecklist(args || '通用', '通用');
+                await sendMessage(chatId, checklist);
+                return;
+              }
+
+              if (text.startsWith('/meeting')) {
+                const args = text.replace('/meeting', '').trim();
+                if (!args) { await sendMessage(chatId, '请输入会议主题，例：/meeting 香港公司注册咨询'); return; }
+                await sendMessage(chatId, '🤝 正在准备会议速读卡...');
+                const prep = await generateMeetingPrep(args);
+                await sendMessage(chatId, prep);
+                return;
+              }
+
+              if (text.startsWith('/draft')) {
+                const args = text.replace('/draft', '').trim();
+                if (!args) { await sendMessage(chatId, '请输入要求，例：/draft 将ODI备案清单转成发给客户的邮件'); return; }
+                await sendMessage(chatId, '📝 正在生成商务文档...');
+                const draft = await generateDraft(args, '正式邮件', '专业、简洁');
+                await sendMessage(chatId, draft);
+                return;
+              }
+
+              if (text.startsWith('/log')) {
+                const args = text.replace('/log', '').trim();
+                if (!args) { await sendMessage(chatId, '请输入进度更新'); return; }
+                await sendMessage(chatId, '📌 正在记录项目进度...');
+                const log = await logProject(args);
+                await sendMessage(chatId, formatProjectLog(log));
+                return;
+              }
+
+              if (text.startsWith('/ask')) {
+                const q = text.replace('/ask', '').trim();
+                await processMessage(chatId, q || text);
+                return;
+              }
+
+              // 默认：自动分诊
+              await processMessage(chatId, text);
+            }
+
+            handle().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
           "
         env:
           GITHUB_TOKEN: ${{ github.token }}
