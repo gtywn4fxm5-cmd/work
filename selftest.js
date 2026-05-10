@@ -10,7 +10,7 @@ async function diagnose() {
 
   console.log('\n📋 第1步：检查环境变量');
   const envCheck = {
-    GITHUB_MODELS_TOKEN: !!process.env.GITHUB_MODELS_TOKEN,
+    MODELS_TOKEN: !!process.env.MODELS_TOKEN,
     NOTION_API_KEY: !!process.env.NOTION_API_KEY,
     NOTION_DATABASE_ID: !!process.env.NOTION_DATABASE_ID,
     TELEGRAM_BOT_TOKEN: !!process.env.TELEGRAM_BOT_TOKEN,
