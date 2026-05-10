@@ -15,6 +15,9 @@ on:
           - poll
           - daily
 
+permissions:
+  models: read
+
 jobs:
   daily-policy-push:
     if: github.event.schedule == '30 0 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'daily')
