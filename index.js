@@ -328,11 +328,18 @@ async function startPolling() {
 
 async function runOnce() {
   console.log('⚡ 单次执行模式（GitHub Actions）...');
+  console.log('  NODE_ENV:', process.env.NODE_ENV);
+  console.log('  GITHUB_TOKEN存在:', !!process.env.GITHUB_TOKEN);
+  console.log('  GITHUB_REPOSITORY:', process.env.GITHUB_REPOSITORY);
+  console.log('  MODELS_TOKEN存在:', !!process.env.MODELS_TOKEN);
+  console.log('  TELEGRAM_BOT_TOKEN存在:', !!process.env.TELEGRAM_BOT_TOKEN);
+
   await setup();
 
   const savedOffset = readOffset();
   console.log(`  已保存的offset: ${savedOffset}`);
 
+  console.log('  正在调用 getUpdates...');
   const updates = await getUpdates(savedOffset);
   console.log(`获取到 ${updates.length} 条消息`);
 
@@ -340,6 +347,10 @@ async function runOnce() {
     console.log('没有新消息');
     await triggerNextPoll();
     return;
+  }
+
+  for (const u of updates) {
+    console.log(`  消息: update_id=${u.update_id} text="${u.message?.text}" chat_id=${u.message?.chat?.id}`);
   }
 
   let lastUpdateId = 0;
