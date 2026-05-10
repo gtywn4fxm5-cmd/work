@@ -3,16 +3,16 @@ name: AI Work Assistant v3
 on:
   schedule:
     - cron: '30 0 * * *'
-    - cron: '*/15 * * * *'
+  repository_dispatch:
+    types: [telegram_message]
   workflow_dispatch:
     inputs:
       mode:
         description: '运行模式'
         required: false
-        default: 'poll'
+        default: 'daily'
         type: choice
         options:
-          - poll
           - daily
 
 permissions:
@@ -47,8 +47,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-  poll-messages:
-    if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '*/15 * * * *')
+  handle-telegram-message:
+    if: github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -65,47 +65,25 @@ jobs:
       - name: Install dependencies
         run: rm -f package-lock.json && npm install
 
-      - name: Restore offset cache
-        uses: actions/cache@v5
-        with:
-          path: .offset
-          key: telegram-offset-v1
-          restore-keys: |
-            telegram-offset-
-
-      - name: Process messages
-        id: process_messages
+      - name: Process message
         run: |
-          OUTPUT=$(node index.js)
-          echo "$OUTPUT"
-          if echo "$OUTPUT" | grep -q "获取到 0 条消息"; then
-            echo "has_messages=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_messages=true" >> $GITHUB_OUTPUT
-          fi
+          node -e "
+            const { processMessage } = require('./src/main');
+            const chatId = '${{ github.event.client_payload.chatId }}';
+            const text = '${{ github.event.client_payload.text }}';
+            console.log('收到消息: chatId=' + chatId + ' text=' + text);
+            processMessage(chatId, text).then(r => {
+              console.log('处理完成:', JSON.stringify(r));
+              process.exit(r.success ? 0 : 1);
+            }).catch(e => {
+              console.error('处理失败:', e);
+              process.exit(1);
+            });
+          "
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
           MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-
-      - name: Trigger next poll
-        if: steps.process_messages.outputs.has_messages == 'true'
-        run: |
-          echo "=== 有未处理消息，触发下一次poll ==="
-          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST \
-            -H "Authorization: Bearer ${{ secrets.WORKFLOW_PAT }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/assistant.yml/dispatches" \
-            -d '{"ref":"main","inputs":{"mode":"poll"}}')
-          HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
-          if [ "$HTTP_CODE" = "204" ]; then
-            echo "✅ 自触发成功"
-          else
-            echo "❌ 自触发失败 HTTP $HTTP_CODE"
-          fi
-        continue-on-error: true

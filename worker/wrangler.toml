@@ -3,8 +3,5 @@ main = "index.js"
 compatibility_date = "2024-01-01"
 
 [vars]
-GITHUB_REPO = ""
-
-[secrets]
-BOT_TOKEN = ""
-GITHUB_TOKEN = ""
+GITHUB_REPO = "wisteria020801/work"
+ALLOWED_CHAT_ID = "8707288756"
