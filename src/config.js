@@ -9,7 +9,10 @@ module.exports = {
   },
   notion: {
     apiKey: process.env.NOTION_API_KEY,
-    databaseId: process.env.NOTION_DATABASE_ID
+    databaseId: process.env.NOTION_DATABASE_ID,
+    profileDbId: process.env.NOTION_PROFILE_DB_ID || null,
+    pipelineDbId: process.env.NOTION_PIPELINE_DB_ID || null,
+    caseDbId: process.env.NOTION_CASE_DB_ID || null
   },
   telegram: {
     botToken: process.env.TELEGRAM_BOT_TOKEN,

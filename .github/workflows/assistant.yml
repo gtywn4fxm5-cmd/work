@@ -1,4 +1,4 @@
-name: AI Work Assistant v3
+name: AI Work Assistant v4
 
 on:
   schedule:
@@ -73,7 +73,11 @@ jobs:
             const { triage, formatTriageCard, generateDraft, logProject, formatProjectLog } = require('./src/triage');
             const { fetchFromGoogleAlerts } = require('./src/policy-scraper');
             const { summarizePolicy, generateChecklist, generateMeetingPrep } = require('./src/policy-analyzer');
-            const { saveRecord } = require('./src/knowledge');
+            const { createProfile, formatProfileCard, saveProfileToNotion, queryProfile, formatProfileList } = require('./src/profile');
+            const { createPipeline, formatPipelineCard, savePipelineToNotion, queryPipeline, formatPipelineList } = require('./src/pipeline');
+            const { generateMaterialList, formatBasicMaterialList, MATERIAL_TEMPLATES } = require('./src/material');
+            const { generateScript, listScenarios } = require('./src/script');
+            const { searchCase, formatCaseResult } = require('./src/casebase');
 
             const chatId = '${{ github.event.client_payload.chatId }}';
             const text = '${{ github.event.client_payload.text }}';
@@ -82,17 +86,17 @@ jobs:
 
             async function handle() {
               if (text === '/start') {
-                await sendMessage(chatId, '🤖 跨境业务分诊系统 v4.0\n\n核心功能：\n🏷️ /triage  - 业务分诊卡\n📰 /policy  - 今日政策简报\n📋 /checklist - 材料清单\n🤝 /meeting - 会议速读卡\n📝 /draft   - 商务文档生成\n📌 /log     - 项目进度记录\n❓ /ask     - 业务问答\n📊 /status  - 系统状态');
+                await sendMessage(chatId, '🤖 跨境业务助手 v4.0\n\n👤 /profile  - 客户画像（录入/查询）\n🔗 /pipeline - 业务链跟踪\n📋 /material - 材料清单（按业务细分）\n🎭 /script   - 场景话术生成\n📌 /case     - 案例/FAQ/解决方案\n🏷️ /triage   - 业务分诊卡\n📰 /policy   - 今日政策简报\n🤝 /meeting  - 会议速读卡\n📝 /draft    - 商务文档生成\n📌 /log      - 项目进度记录\n❓ /ask      - 业务问答\n📊 /status   - 系统状态');
                 return;
               }
 
               if (text === '/help') {
-                await sendMessage(chatId, '📖 使用指南\n\n🏷️ /triage [业务描述]\n📰 /policy\n📋 /checklist [地区] [业务]\n🤝 /meeting [主题]\n📝 /draft [要求]\n📌 /log [进度更新]\n❓ /ask [问题]');
+                await sendMessage(chatId, '📖 使用指南\n\n👤 /profile [客户描述] 或 /profile search [关键词]\n🔗 /pipeline [业务描述] 或 /pipeline search [关键词]\n📋 /material [业务类型] 如: /material 开户\n🎭 /script [场景] [背景] 如: /script 方案推荐 香港开户\n📌 /case [关键词] 或 /case [业务类型]\n🏷️ /triage [业务描述]\n📰 /policy\n🤝 /meeting [主题]\n📝 /draft [要求]\n📌 /log [进度更新]\n❓ /ask [问题]');
                 return;
               }
 
               if (text === '/status') {
-                await sendMessage(chatId, '📊 系统状态\n\n✅ Telegram Bot: 运行中\n✅ GitHub Actions: 运行中\n⏰ 每日政策推送: 8:30 (UTC+8)\n🔀 业务路由: 开户/架构/资金/税务/融资');
+                await sendMessage(chatId, '📊 系统状态 v4.0\n\n✅ Telegram Bot: 运行中\n✅ GitHub Actions: 运行中\n⏰ 每日政策推送: 8:30 (UTC+8)\n\n📦 模块状态:\n👤 客户画像: ✅\n🔗 业务链: ✅\n📋 材料清单: ✅\n🎭 话术库: ✅\n📌 案例库: ✅');
                 return;
               }
 
@@ -102,6 +106,76 @@ jobs:
                 if (items.length === 0) { await sendMessage(chatId, '📰 今日暂无新政策'); return; }
                 const summary = await summarizePolicy(items);
                 await sendMessage(chatId, summary);
+                return;
+              }
+
+              if (text.startsWith('/profile')) {
+                const input = text.replace('/profile', '').trim();
+                if (!input) { await sendMessage(chatId, '👤 客户画像\n\n录入: /profile 制造业中型企业想在新加坡开户\n查询: /profile search 制造业'); return; }
+                if (input.startsWith('search ')) {
+                  const keyword = input.replace('search', '').trim();
+                  await sendMessage(chatId, '🔍 正在查询客户画像...');
+                  const profiles = await queryProfile(keyword);
+                  await sendMessage(chatId, formatProfileList(profiles));
+                  return;
+                }
+                await sendMessage(chatId, '👤 正在生成客户画像...');
+                const profile = await createProfile(input);
+                await sendMessage(chatId, formatProfileCard(profile));
+                const url = await saveProfileToNotion(profile);
+                if (url) await sendMessage(chatId, '📝 已归档到Notion: ' + url);
+                return;
+              }
+
+              if (text.startsWith('/pipeline')) {
+                const input = text.replace('/pipeline', '').trim();
+                if (!input) { await sendMessage(chatId, '🔗 业务链跟踪\n\n新建: /pipeline 张总要在香港设公司做ODI\n查询: /pipeline search 张总'); return; }
+                if (input.startsWith('search ')) {
+                  const keyword = input.replace('search', '').trim();
+                  await sendMessage(chatId, '🔍 正在查询业务链...');
+                  const pipelines = await queryPipeline(keyword);
+                  await sendMessage(chatId, formatPipelineList(pipelines));
+                  return;
+                }
+                await sendMessage(chatId, '🔗 正在创建业务链...');
+                const pipeline = await createPipeline(input);
+                await sendMessage(chatId, formatPipelineCard(pipeline));
+                const url = await savePipelineToNotion(pipeline);
+                if (url) await sendMessage(chatId, '📝 已归档到Notion: ' + url);
+                return;
+              }
+
+              if (text.startsWith('/material')) {
+                const input = text.replace('/material', '').trim();
+                if (!input) {
+                  const types = Object.keys(MATERIAL_TEMPLATES).join(' / ');
+                  await sendMessage(chatId, '📋 材料清单\n\n用法: /material [业务类型]\n\n支持: ' + types);
+                  return;
+                }
+                await sendMessage(chatId, '📋 正在生成材料清单...');
+                const result = await generateMaterialList(input, '通用');
+                await sendMessage(chatId, result);
+                return;
+              }
+
+              if (text.startsWith('/script')) {
+                const input = text.replace('/script', '').trim();
+                if (!input) { await sendMessage(chatId, listScenarios()); return; }
+                const parts = input.split(/\s+/);
+                const scenario = parts[0];
+                const context = parts.slice(1).join(' ') || '';
+                await sendMessage(chatId, '🎭 正在生成话术...');
+                const result = await generateScript(scenario, context);
+                await sendMessage(chatId, result);
+                return;
+              }
+
+              if (text.startsWith('/case')) {
+                const input = text.replace('/case', '').trim();
+                if (!input) { await sendMessage(chatId, '📌 案例库\n\n用法: /case [关键词或业务类型]\n例: /case ODI\n例: /case 香港开户'); return; }
+                await sendMessage(chatId, '📌 正在检索案例库...');
+                const result = await searchCase(input, null);
+                await sendMessage(chatId, formatCaseResult(result));
                 return;
               }
 
@@ -155,7 +229,6 @@ jobs:
                 return;
               }
 
-              // 默认：自动分诊
               await processMessage(chatId, text);
             }
 
@@ -166,5 +239,8 @@ jobs:
           MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          NOTION_PROFILE_DB_ID: ${{ secrets.NOTION_PROFILE_DB_ID }}
+          NOTION_PIPELINE_DB_ID: ${{ secrets.NOTION_PIPELINE_DB_ID }}
+          NOTION_CASE_DB_ID: ${{ secrets.NOTION_CASE_DB_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
