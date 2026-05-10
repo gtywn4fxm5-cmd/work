@@ -122,8 +122,7 @@ jobs:
                 await sendMessage(chatId, '👤 正在生成客户画像...');
                 const profile = await createProfile(input);
                 await sendMessage(chatId, formatProfileCard(profile));
-                const url = await saveProfileToNotion(profile);
-                if (url) await sendMessage(chatId, '📝 已归档到Notion: ' + url);
+                await sendMessage(chatId, '💾 确认无误后，可将上述信息手动录入Notion客户画像库');
                 return;
               }
 
@@ -140,8 +139,7 @@ jobs:
                 await sendMessage(chatId, '🔗 正在创建业务链...');
                 const pipeline = await createPipeline(input);
                 await sendMessage(chatId, formatPipelineCard(pipeline));
-                const url = await savePipelineToNotion(pipeline);
-                if (url) await sendMessage(chatId, '📝 已归档到Notion: ' + url);
+                await sendMessage(chatId, '💾 确认无误后，可将上述信息手动录入Notion业务链库');
                 return;
               }
 
@@ -176,6 +174,7 @@ jobs:
                 await sendMessage(chatId, '📌 正在检索案例库...');
                 const result = await searchCase(input, null);
                 await sendMessage(chatId, formatCaseResult(result));
+                await sendMessage(chatId, '💾 如有典型案例，可将解决方案手动录入Notion案例库');
                 return;
               }
 
