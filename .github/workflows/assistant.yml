@@ -1,9 +1,10 @@
 name: AI Work Assistant v3
 
 on:
-  schedule:
-    - cron: '30 0 * * *'
-    - cron: '*/5 * * * *'
+  # 临时禁用所有触发器，停止无限触发
+  # schedule:
+  #   - cron: '30 0 * * *'
+  #   - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -14,10 +15,10 @@ on:
         options:
           - poll
           - daily
-  repository_dispatch:
-    types:
-      - telegram_message
-      - daily_push
+  # repository_dispatch:
+  #   types:
+  #     - telegram_message
+  #     - daily_push
 
 jobs:
   daily-policy-push:
